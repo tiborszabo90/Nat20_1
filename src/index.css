@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════
+   DESIGN TOKENEK – Nat20
+   Tailwind v4 @theme: ezekből generálódnak az utility osztályok.
+   Pl. --color-surface-raised → bg-surface-raised, text-surface-raised stb.
+   ═══════════════════════════════════════════════════════ */
+@theme {
+  /* ── Felületek ── */
+  --color-surface-base:    var(--color-gray-950); /* oldal alap háttér */
+  --color-surface-raised:  var(--color-gray-800); /* kártyák */
+  --color-surface-overlay: var(--color-gray-900); /* beágyazott / modál */
+  --color-surface-sunken:  var(--color-gray-900); /* mélyen beágyazott elem */
+
+  /* ── Szegélyek ── */
+  --color-border:       var(--color-gray-700);
+  --color-border-subtle: var(--color-gray-800);
+  --color-border-hover: var(--color-gray-500);
+
+  /* ── Szöveg ── */
+  --color-text-primary:   var(--color-white);
+  --color-text-secondary: var(--color-gray-300);
+  --color-text-muted:     var(--color-gray-400);
+  --color-text-subtle:    var(--color-gray-500);
+  --color-text-disabled:  var(--color-gray-600);
+
+  /* ── Akcentus (Amber) ── */
+  --color-accent:       var(--color-amber-400);
+  --color-accent-hover: var(--color-amber-500);
+
+  /* ── Szemantikus: HP ── */
+  --color-hp-full:     var(--color-green-500);
+  --color-hp-injured:  var(--color-yellow-500);
+  --color-hp-critical: var(--color-red-500);
+
+  /* ── Szemantikus: Mágia ── */
+  --color-magic:        var(--color-violet-400);
+  --color-magic-bright: var(--color-violet-500);
+  --color-magic-border: var(--color-violet-600);
+
+  /* ── Szemantikus: Státusz ── */
+  --color-concentration: var(--color-cyan-500);
+  --color-ritual:        var(--color-emerald-500);
+  --color-danger:        var(--color-red-700);
+  --color-danger-hover:  var(--color-red-600);
+  --color-success:       var(--color-green-700);
+  --color-success-hover: var(--color-green-600);
+  --color-neutral:       var(--color-gray-700);
+  --color-neutral-hover: var(--color-gray-600);
+
+  /* ── Border radius ── */
+  --radius-card:  0px;
+  --radius-btn:   0px;
+  --radius-badge: 0px;
+  --radius-input: 0px;
+
+  /* ── Betűtípusok ── */
+  --font-display: "Cinzel", serif;
+  --font-body:    "Roboto Flex", sans-serif;
+}
+
+@layer components {
+  /* ── Headings (Cinzel) ── */
+  .heading-xl { @apply font-display text-3xl   font-bold     leading-tight; }
+  .heading-l  { @apply font-display text-2xl   font-bold     leading-tight; }
+  .heading-m  { @apply font-display text-xl    font-semibold leading-snug;  }
+  .heading-s  { @apply font-display text-lg    font-semibold leading-snug;  }
+
+  /* ── Labels (Cinzel – uppercase) ── */
+  .label-l { @apply font-display text-sm     font-semibold uppercase tracking-wider; }
+  .label-m { @apply font-display text-xs     font-semibold uppercase tracking-wider; }
+  .label-s { @apply font-display text-[10px] font-semibold uppercase tracking-wider; }
+
+  /* ── Subheadings (Roboto Flex) ── */
+  .subheading-l { @apply font-body text-base font-semibold leading-snug; }
+  .subheading-m { @apply font-body text-sm   font-semibold leading-snug; }
+
+  /* ── Body (Roboto Flex) ── */
+  .body-l { @apply font-body text-base font-normal leading-relaxed; }
+  .body-m { @apply font-body text-sm   font-normal leading-relaxed; }
+  .body-s { @apply font-body text-xs   font-normal; }
+}
+
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

@@ -5,7 +5,6 @@ import { CombatView } from '../components/character/sheet/CombatView'
 import { ExplorationView } from '../components/character/sheet/ExplorationView'
 import { SocialView } from '../components/character/sheet/SocialView'
 import { GeneralView } from '../components/character/sheet/GeneralView'
-
 export function CharacterSheetPage() {
   const { campaignId } = useParams<{ campaignId: string }>()
   const navigate = useNavigate()

@@ -98,6 +98,7 @@ interface BattlemapCanvasProps {
   battlemap: BattlemapState
   campaignCode: string
   isEditable: boolean
+  playerCharacterId?: string | null
   selectedTokenId: string | null
   placingToken: BattlemapToken | null
   onTokenPlace: (col: number, row: number) => void
@@ -108,6 +109,7 @@ export function BattlemapCanvas({
   battlemap,
   campaignCode,
   isEditable,
+  playerCharacterId,
   selectedTokenId,
   placingToken,
   onTokenPlace,
@@ -118,18 +120,20 @@ export function BattlemapCanvas({
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   // Ref-ek a stale closure elkerülésére
-  const battlemapRef      = useRef(battlemap)
-  const isEditableRef     = useRef(isEditable)
-  const placingTokenRef   = useRef(placingToken)
-  const onTokenPlaceRef   = useRef(onTokenPlace)
-  const onTokenSelectRef  = useRef(onTokenSelect)
-  const moveTokenLocalRef = useRef(moveTokenLocal)
-  useEffect(() => { battlemapRef.current = battlemap },           [battlemap])
-  useEffect(() => { isEditableRef.current = isEditable },         [isEditable])
-  useEffect(() => { placingTokenRef.current = placingToken },     [placingToken])
-  useEffect(() => { onTokenPlaceRef.current = onTokenPlace },     [onTokenPlace])
-  useEffect(() => { onTokenSelectRef.current = onTokenSelect },   [onTokenSelect])
-  useEffect(() => { moveTokenLocalRef.current = moveTokenLocal }, [moveTokenLocal])
+  const battlemapRef           = useRef(battlemap)
+  const isEditableRef          = useRef(isEditable)
+  const playerCharacterIdRef   = useRef(playerCharacterId)
+  const placingTokenRef        = useRef(placingToken)
+  const onTokenPlaceRef        = useRef(onTokenPlace)
+  const onTokenSelectRef       = useRef(onTokenSelect)
+  const moveTokenLocalRef      = useRef(moveTokenLocal)
+  useEffect(() => { battlemapRef.current = battlemap },                   [battlemap])
+  useEffect(() => { isEditableRef.current = isEditable },                 [isEditable])
+  useEffect(() => { playerCharacterIdRef.current = playerCharacterId },   [playerCharacterId])
+  useEffect(() => { placingTokenRef.current = placingToken },             [placingToken])
+  useEffect(() => { onTokenPlaceRef.current = onTokenPlace },             [onTokenPlace])
+  useEffect(() => { onTokenSelectRef.current = onTokenSelect },           [onTokenSelect])
+  useEffect(() => { moveTokenLocalRef.current = moveTokenLocal },         [moveTokenLocal])
 
   // PixiJS réteg ref-ek
   const viewportRef      = useRef<Container | null>(null)
@@ -194,6 +198,17 @@ export function BattlemapCanvas({
       redrawTokens(tokensLayer, bm.tokens, selectedTokenRef.current)
       loadBgImage(bgContainer, bm.backgroundImageUrl, bm.cols, bm.rows)
 
+      // Térkép kezdeti pozíció: középre igazítva, teljes méretben kifér
+      const mapW = bm.cols * CELL_SIZE
+      const mapH = bm.rows * CELL_SIZE
+      const fitScale = clamp(
+        Math.min(wrapper.clientWidth / mapW, wrapper.clientHeight / mapH) * 0.95,
+        0.2, 4
+      )
+      viewport.scale.set(fitScale)
+      viewport.x = (wrapper.clientWidth  - mapW * fitScale) / 2
+      viewport.y = (wrapper.clientHeight - mapH * fitScale) / 2
+
       const cv = app.canvas
 
       function getCellFromEvent(e: MouseEvent): { col: number; row: number } | null {
@@ -245,11 +260,14 @@ export function BattlemapCanvas({
             return
           }
 
-          // Token drag vagy select (csak DM)
-          if (isEditableRef.current) {
-            const token = getTokenAtCell(cell.col, cell.row)
-            if (token) {
-              // Kattintás jelölt – dragre mozgatásnál derül ki, különben select
+          // Token drag vagy select – DM: bármely token; Játékos: csak saját token
+          const token = getTokenAtCell(cell.col, cell.row)
+          if (token) {
+            const canDrag = isEditableRef.current ||
+              (playerCharacterIdRef.current !== null &&
+               playerCharacterIdRef.current !== undefined &&
+               token.characterId === playerCharacterIdRef.current)
+            if (canDrag) {
               clickCandidateId = token.id
               return
             }
@@ -324,10 +342,23 @@ export function BattlemapCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Rács újrarajzolás ──
+  // ── Rács újrarajzolás + viewport újraközépre igazítás méretváltozáskor ──
   useEffect(() => {
     if (!gridRef.current) return
     redrawGrid(gridRef.current, battlemap.cols, battlemap.rows)
+
+    const vp = viewportRef.current
+    const wrapper = wrapperRef.current
+    if (!vp || !wrapper) return
+    const mapW = battlemap.cols * CELL_SIZE
+    const mapH = battlemap.rows * CELL_SIZE
+    const fitScale = clamp(
+      Math.min(wrapper.clientWidth / mapW, wrapper.clientHeight / mapH) * 0.95,
+      0.2, 4
+    )
+    vp.scale.set(fitScale)
+    vp.x = (wrapper.clientWidth  - mapW * fitScale) / 2
+    vp.y = (wrapper.clientHeight - mapH * fitScale) / 2
   }, [battlemap.cols, battlemap.rows])
 
   // ── Tokenek újrarajzolás (tokenek vagy kiválasztás változásakor) ──
@@ -342,12 +373,12 @@ export function BattlemapCanvas({
     loadBgImage(bgContainerRef.current, battlemap.backgroundImageUrl, battlemap.cols, battlemap.rows)
   }, [battlemap.backgroundImageUrl, battlemap.cols, battlemap.rows])
 
-  const cursor = placingToken ? 'copy' : isEditable ? 'default' : 'grab'
+  const cursor = placingToken ? 'copy' : isEditable ? 'default' : playerCharacterId ? 'grab' : 'grab'
 
   return (
     <div
       ref={wrapperRef}
-      className="flex-1 w-full"
+      className="w-full h-full"
       style={{ cursor }}
     />
   )

@@ -25,9 +25,10 @@ interface TokenInfoProps {
   token: BattlemapToken
   characters: Character[]
   campaignCode: string
+  readOnly?: boolean
 }
 
-export function TokenInfo({ token, characters, campaignCode }: TokenInfoProps) {
+export function TokenInfo({ token, characters, campaignCode, readOnly = false }: TokenInfoProps) {
   const monsters = useDndDataStore(s => s.monsters)
   const updateTokenHpLocal = useBattlemapStore(s => s.updateTokenHpLocal)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -119,33 +120,35 @@ export function TokenInfo({ token, characters, campaignCode }: TokenInfoProps) {
               style={{ width: `${encPct}%` }}
             />
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleEncHpChange(-1)}
-              className="flex-1 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white font-bold text-sm transition-colors"
-            >
-              −1
-            </button>
-            <button
-              onClick={() => handleEncHpChange(-5)}
-              className="flex-1 py-1.5 rounded-lg bg-red-900/60 hover:bg-red-800/60 text-red-300 font-semibold text-xs transition-colors"
-            >
-              −5
-            </button>
-            <button
-              onClick={() => handleEncHpChange(+5)}
-              className="flex-1 py-1.5 rounded-lg bg-green-900/60 hover:bg-green-800/60 text-green-300 font-semibold text-xs transition-colors"
-            >
-              +5
-            </button>
-            <button
-              onClick={() => handleEncHpChange(+1)}
-              disabled={encLocalHp >= encMaxHp}
-              className="flex-1 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-bold text-sm transition-colors"
-            >
-              +1
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleEncHpChange(-1)}
+                className="flex-1 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white font-bold text-sm transition-colors"
+              >
+                −1
+              </button>
+              <button
+                onClick={() => handleEncHpChange(-5)}
+                className="flex-1 py-1.5 rounded-lg bg-red-900/60 hover:bg-red-800/60 text-red-300 font-semibold text-xs transition-colors"
+              >
+                −5
+              </button>
+              <button
+                onClick={() => handleEncHpChange(+5)}
+                className="flex-1 py-1.5 rounded-lg bg-green-900/60 hover:bg-green-800/60 text-green-300 font-semibold text-xs transition-colors"
+              >
+                +5
+              </button>
+              <button
+                onClick={() => handleEncHpChange(+1)}
+                disabled={encLocalHp >= encMaxHp}
+                className="flex-1 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-bold text-sm transition-colors"
+              >
+                +1
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Monster alap statok (ha elérhető) */}

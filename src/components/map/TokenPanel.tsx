@@ -32,6 +32,7 @@ interface TokenPanelProps {
   placingToken: BattlemapToken | null
   onStartPlacing: (token: BattlemapToken) => void
   onCancelPlacing: () => void
+  hideActiveTokens?: boolean
 }
 
 export function TokenPanel({
@@ -40,14 +41,13 @@ export function TokenPanel({
   placingToken,
   onStartPlacing,
   onCancelPlacing,
+  hideActiveTokens = false,
 }: TokenPanelProps) {
-  const [tab, setTab] = useState<'characters' | 'encounter'>('characters')
   const [characters, setCharacters] = useState<Character[]>([])
-
-  // Encounter tab állapot
   const [search, setSearch] = useState('')
   const [selectedMonster, setSelectedMonster] = useState<Monster | null>(null)
   const [encounterColor, setEncounterColor] = useState('#ef4444')
+  const [showAddEnemy, setShowAddEnemy] = useState(false)
 
   const monsters = useDndDataStore(s => s.monsters)
   const isLoading = useDndDataStore(s => s.isLoading)
@@ -73,19 +73,6 @@ export function TokenPanel({
 
   function makeId() {
     return Math.random().toString(36).slice(2, 10)
-  }
-
-  function handleCharacterPlace(char: Character) {
-    const initials = char.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-    onStartPlacing({
-      id: makeId(),
-      col: 0,
-      row: 0,
-      type: 'character',
-      characterId: char.id,
-      label: initials || char.name.slice(0, 2).toUpperCase(),
-      color: '#f59e0b',
-    })
   }
 
   function handleMonsterSelect(m: Monster) {
@@ -131,53 +118,17 @@ export function TokenPanel({
         </div>
       )}
 
-      <div className="flex gap-1">
-        {(['characters', 'encounter'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              tab === t
-                ? 'bg-amber-500 text-gray-950 font-semibold'
-                : 'bg-gray-800 text-gray-400 hover:text-white'
-            }`}
-          >
-            {t === 'characters' ? 'Karakterek' : 'Encounter'}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'characters' && (
-        <div className="space-y-1">
-          {characters.length === 0 ? (
-            <p className="text-gray-500 text-xs">Nincsenek karakterek a kampányban.</p>
-          ) : (
-            characters.map(char => (
-              <div key={char.id} className="flex items-center gap-2">
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-gray-950 shrink-0"
-                  style={{ background: '#f59e0b' }}
-                >
-                  {char.name.slice(0, 2).toUpperCase()}
-                </div>
-                <span className="text-sm text-gray-200 flex-1 truncate">{char.name}</span>
-                <span className="text-xs text-gray-500">{char.classKey} {char.level}</span>
-                <button
-                  onClick={() => handleCharacterPlace(char)}
-                  disabled={!!placingToken}
-                  className="px-2 py-0.5 text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-amber-400 rounded transition-colors"
-                >
-                  Elhelyez
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {tab === 'encounter' && (
-        <div className="space-y-2">
-          {/* Monster kereső */}
+      <div>
+        <button
+          onClick={() => setShowAddEnemy(s => !s)}
+          className="w-full flex items-center justify-between text-xs font-display uppercase tracking-widest text-text-muted hover:text-white transition-colors py-1"
+        >
+          <span>Ellenfél hozzáadása</span>
+          <span>{showAddEnemy ? '▲' : '▼'}</span>
+        </button>
+        {showAddEnemy && (
+        <div className="space-y-2 mt-3">
+          {/* Ellenfél kereső */}
           <div className="relative">
             <input
               type="text"
@@ -271,12 +222,12 @@ export function TokenPanel({
             </button>
           </div>
         </div>
-      )}
+        )}
+      </div>
 
       {/* Aktív tokenek */}
-      {activeTokens.length > 0 && (
+      {!hideActiveTokens && activeTokens.length > 0 && (
         <div className="pt-2 border-t border-gray-800 space-y-1">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Aktív tokenek</p>
           {activeTokens.map(token => {
             const isSelected = token.id === selectedTokenId
             return (

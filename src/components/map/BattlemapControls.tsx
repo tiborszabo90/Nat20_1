@@ -43,37 +43,46 @@ export function BattlemapControls({ battlemap, campaignCode }: BattlemapControls
     }
   }
 
+  const hasChange = cols !== battlemap.cols || rows !== battlemap.rows
+
   return (
-    <div className="flex flex-wrap items-center gap-4 text-sm">
+    <div className="flex flex-col gap-4 text-sm">
       {/* Háttérkép feltöltés */}
       <BattlemapImageUpload battlemap={battlemap} campaignCode={campaignCode} />
 
       {/* Grid méret */}
-      <div className="flex items-center gap-2">
-        <span className="text-text-muted">Oszlopok:</span>
-        <input
-          type="number"
-          min={10}
-          max={40}
-          value={cols}
-          onChange={e => setCols(Math.min(40, Math.max(10, Number(e.target.value))))}
-          className="w-16 bg-surface-raised border border-border rounded-input px-2 py-1 text-white text-center"
-        />
-        <span className="text-text-muted">Sorok:</span>
-        <input
-          type="number"
-          min={10}
-          max={30}
-          value={rows}
-          onChange={e => setRows(Math.min(30, Math.max(10, Number(e.target.value))))}
-          className="w-16 bg-surface-raised border border-border rounded-input px-2 py-1 text-white text-center"
-        />
+      <div className="flex flex-col gap-2">
+        <span className="text-text-muted text-xs font-display uppercase tracking-widest">Grid méret</span>
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted w-16 shrink-0">Oszlopok</span>
+          <input
+            type="number"
+            min={10}
+            max={40}
+            value={cols}
+            onChange={e => setCols(Math.min(40, Math.max(10, Number(e.target.value))))}
+            onKeyDown={e => e.key === 'Enter' && void handleResize()}
+            className="w-16 bg-surface-raised border border-border rounded-input px-2 py-1 text-white text-center"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted w-16 shrink-0">Sorok</span>
+          <input
+            type="number"
+            min={10}
+            max={30}
+            value={rows}
+            onChange={e => setRows(Math.min(30, Math.max(10, Number(e.target.value))))}
+            onKeyDown={e => e.key === 'Enter' && void handleResize()}
+            className="w-16 bg-surface-raised border border-border rounded-input px-2 py-1 text-white text-center"
+          />
+        </div>
         <button
           onClick={handleResize}
-          disabled={resizing || (cols === battlemap.cols && rows === battlemap.rows)}
-          className="px-3 py-1 bg-neutral hover:bg-neutral-hover disabled:opacity-40 text-white rounded-input transition-colors"
+          disabled={resizing || !hasChange}
+          className="w-full px-3 py-1.5 bg-neutral hover:bg-neutral-hover disabled:opacity-40 text-white rounded-input transition-colors"
         >
-          {resizing ? 'Mentés...' : 'Méret alkalmazása'}
+          {resizing ? 'Mentés...' : 'Alkalmaz'}
         </button>
       </div>
 
@@ -81,7 +90,7 @@ export function BattlemapControls({ battlemap, campaignCode }: BattlemapControls
       <button
         onClick={handleClear}
         disabled={clearing || Object.keys(battlemap.cells).length === 0}
-        className="px-3 py-1 bg-danger hover:bg-danger-hover disabled:opacity-40 text-white rounded-input transition-colors"
+        className="w-full px-3 py-1.5 bg-danger hover:bg-danger-hover disabled:opacity-40 text-white rounded-input transition-colors"
       >
         {clearing ? 'Törlés...' : 'Térkép törlése'}
       </button>

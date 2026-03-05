@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import type { BattlemapState, TerrainType } from '../types/app/map'
 
 interface BattlemapStoreState {
-  battlemap: BattlemapState | null
+  /** undefined = még nem töltött be; null = Firestore megerősítette, nincs doc; BattlemapState = betöltött */
+  battlemap: BattlemapState | null | undefined
   selectedTerrain: TerrainType
   selectedTokenId: string | null
   setBattlemap: (s: BattlemapState | null) => void
@@ -20,7 +21,7 @@ interface BattlemapStoreState {
 }
 
 export const useBattlemapStore = create<BattlemapStoreState>((set) => ({
-  battlemap: null,
+  battlemap: undefined,
   selectedTerrain: 'wall',
   selectedTokenId: null,
 

@@ -29,7 +29,7 @@ export function PlayerDashboardPage() {
         const character = await getCharacterByPlayerUid(campaignId!, uid!)
         if (character) {
           setCharacter(character)
-          navigate(`/player/${campaignId}/sheet`, { replace: true })
+          navigate(`/player/${campaignId}/battlemap`, { replace: true })
         } else {
           navigate(`/player/${campaignId}/build`, { replace: true })
         }

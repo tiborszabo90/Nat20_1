@@ -10,8 +10,9 @@ export interface BattlemapToken {
   color: string      // hex szín, pl. '#f59e0b'
   currentHp?: number  // encounter tokenek HP követéséhez
   maxHp?: number      // encounter tokenek max HP
-  monsterKey?: string // encounter tokenek monster lookup-jához (open5e slug)
-  fullName?: string   // encounter token teljes neve (label csak 2 char)
+  monsterKey?: string  // encounter tokenek monster lookup-jához (open5e slug)
+  fullName?: string    // encounter token teljes neve (label csak 2 char)
+  tokenSize?: number   // D&D creature size: 1=Small/Med, 2=Large, 3=Huge, 4=Gargantuan
 }
 
 export interface BattlemapState {

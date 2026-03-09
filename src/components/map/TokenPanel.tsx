@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { removeBattlemapToken } from '../../services/firebase/battlemapService'
+import { fetchMonsterBySlug } from '../../services/dnd-data/dndDataService'
 import { useDndDataStore } from '../../store/dndDataStore'
 import { useBattlemapStore } from '../../store/battlemapStore'
 import { TokenInfo } from './TokenInfo'
 import type { BattlemapToken, BattlemapState } from '../../types/app/map'
 import type { Character } from '../../types/dnd/character'
-import type { Monster } from '../../types/dnd/monster'
+import type { Monster, MonsterSummary } from '../../types/dnd/monster'
 
 const PRESET_COLORS = [
   '#f59e0b', // amber – karakter alap
@@ -19,6 +20,16 @@ const PRESET_COLORS = [
   '#06b6d4', // cyan
   '#ec4899', // pink
 ]
+
+// D&D creature size → rácsméret (cella száma oldalanként)
+function sizeToTokenSize(size: string): number {
+  switch (size.toLowerCase()) {
+    case 'large': return 2
+    case 'huge': return 3
+    case 'gargantuan': return 4
+    default: return 1 // Tiny, Small, Medium
+  }
+}
 
 // Képességmódosító számítás
 function mod(score: number): string {
@@ -45,12 +56,18 @@ export function TokenPanel({
 }: TokenPanelProps) {
   const [characters, setCharacters] = useState<Character[]>([])
   const [search, setSearch] = useState('')
+  // A legördülőből kiválasztott összefoglaló (azonnali)
+  const [selectedSummary, setSelectedSummary] = useState<MonsterSummary | null>(null)
+  // Teljes stat block – on-demand fetch után
   const [selectedMonster, setSelectedMonster] = useState<Monster | null>(null)
+  const [isFetchingMonster, setIsFetchingMonster] = useState(false)
   const [encounterColor, setEncounterColor] = useState('#ef4444')
   const [showAddEnemy, setShowAddEnemy] = useState(false)
 
-  const monsters = useDndDataStore(s => s.monsters)
-  const isLoading = useDndDataStore(s => s.isLoading)
+  const monsterIndex = useDndDataStore(s => s.monsterIndex)
+  const isLoadingMonsterIndex = useDndDataStore(s => s.isLoadingMonsterIndex)
+  const monsterCache = useDndDataStore(s => s.monsterCache)
+  const cacheMonster = useDndDataStore(s => s.cacheMonster)
   const selectedTokenId = useBattlemapStore(s => s.selectedTokenId)
   const setSelectedTokenId = useBattlemapStore(s => s.setSelectedTokenId)
 
@@ -62,22 +79,38 @@ export function TokenPanel({
     })
   }, [campaignCode])
 
-  // Monster keresési eredmények (max 8 találat)
-  const filteredMonsters = useMemo(() => {
+  // Kliensoldali szűrés a névindexen (azonnali, debounce nélkül)
+  const searchResults = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return []
-    return monsters
-      .filter(m => m.name.toLowerCase().includes(q))
-      .slice(0, 8)
-  }, [search, monsters])
+    if (q.length < 2 || selectedSummary) return []
+    return monsterIndex.filter(m => m.name.toLowerCase().includes(q)).slice(0, 8)
+  }, [search, selectedSummary, monsterIndex])
 
   function makeId() {
     return Math.random().toString(36).slice(2, 10)
   }
 
-  function handleMonsterSelect(m: Monster) {
-    setSelectedMonster(m)
-    setSearch(m.name)
+  function handleMonsterSelect(summary: MonsterSummary) {
+    setSelectedSummary(summary)
+    setSearch(summary.name)
+    setSelectedMonster(null)
+
+    // Cache-ből tölt ha már megvan, egyébként API fetch
+    const cached = monsterCache.get(summary.key)
+    if (cached) {
+      setSelectedMonster(cached)
+      return
+    }
+    setIsFetchingMonster(true)
+    fetchMonsterBySlug(summary.key)
+      .then(m => {
+        if (m) {
+          cacheMonster(m)
+          setSelectedMonster(m)
+        }
+      })
+      .catch(console.error)
+      .finally(() => setIsFetchingMonster(false))
   }
 
   function handleEncounterPlace() {
@@ -94,6 +127,7 @@ export function TokenPanel({
       fullName: selectedMonster.name,
       maxHp: selectedMonster.hp,
       currentHp: selectedMonster.hp,
+      tokenSize: sizeToTokenSize(selectedMonster.size),
     })
   }
 
@@ -135,16 +169,17 @@ export function TokenPanel({
               value={search}
               onChange={e => {
                 setSearch(e.target.value)
+                setSelectedSummary(null)
                 setSelectedMonster(null)
+                setIsFetchingMonster(false)
               }}
-              placeholder={isLoading ? 'Adatok töltése...' : 'Keresés (pl. Goblin)'}
-              disabled={isLoading}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 disabled:opacity-50"
+              placeholder={isLoadingMonsterIndex && monsterIndex.length === 0 ? 'Névindex betöltése...' : 'Keresés (pl. Goblin)...'}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
             />
             {/* Legördülő találati lista */}
-            {filteredMonsters.length > 0 && !selectedMonster && (
+            {searchResults.length > 0 && (
               <ul className="absolute z-10 top-full mt-1 w-full bg-gray-800 border border-gray-700 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                {filteredMonsters.map(m => (
+                {searchResults.map(m => (
                   <li key={m.key}>
                     <button
                       onClick={() => handleMonsterSelect(m)}
@@ -159,43 +194,51 @@ export function TokenPanel({
             )}
           </div>
 
-          {/* Kiválasztott monster stat block */}
-          {selectedMonster && (
+          {/* Kiválasztott monster – betöltés vagy stat block */}
+          {selectedSummary && (
             <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-3 space-y-2 text-xs">
-              <div>
-                <p className="text-amber-400 font-bold text-sm">{selectedMonster.name}</p>
-                <p className="text-gray-400">
-                  {selectedMonster.size} {selectedMonster.type}
-                  {selectedMonster.alignment ? ` · ${selectedMonster.alignment}` : ''}
-                </p>
-              </div>
-              <div className="flex gap-3 text-gray-300">
-                <span><span className="text-gray-500">AC</span> {selectedMonster.ac}{selectedMonster.acDesc ? ` (${selectedMonster.acDesc})` : ''}</span>
-                <span><span className="text-gray-500">HP</span> {selectedMonster.hp} ({selectedMonster.hitDice})</span>
-                <span><span className="text-gray-500">CR</span> {selectedMonster.cr}</span>
-              </div>
-              <p className="text-gray-400"><span className="text-gray-500">Sebesség:</span> {selectedMonster.speed}</p>
-              <div className="grid grid-cols-6 gap-1 text-center">
-                {(
-                  [
-                    ['STR', selectedMonster.str],
-                    ['DEX', selectedMonster.dex],
-                    ['CON', selectedMonster.con],
-                    ['INT', selectedMonster.int],
-                    ['WIS', selectedMonster.wis],
-                    ['CHA', selectedMonster.cha],
-                  ] as [string, number][]
-                ).map(([label, val]) => (
-                  <div key={label} className="bg-gray-900/60 rounded py-1">
-                    <p className="text-gray-500 text-[10px]">{label}</p>
-                    <p className="text-gray-200 font-semibold">{val}</p>
-                    <p className="text-gray-400 text-[10px]">{mod(val)}</p>
+              {isFetchingMonster ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : selectedMonster ? (
+                <>
+                  <div>
+                    <p className="text-amber-400 font-bold text-sm">{selectedMonster.name}</p>
+                    <p className="text-gray-400">
+                      {selectedMonster.size} {selectedMonster.type}
+                      {selectedMonster.alignment ? ` · ${selectedMonster.alignment}` : ''}
+                    </p>
                   </div>
-                ))}
-              </div>
-              {selectedMonster.senses && (
-                <p className="text-gray-400 truncate"><span className="text-gray-500">Érzékek:</span> {selectedMonster.senses}</p>
-              )}
+                  <div className="flex gap-3 text-gray-300">
+                    <span><span className="text-gray-500">AC</span> {selectedMonster.ac}{selectedMonster.acDesc ? ` (${selectedMonster.acDesc})` : ''}</span>
+                    <span><span className="text-gray-500">HP</span> {selectedMonster.hp} ({selectedMonster.hitDice})</span>
+                    <span><span className="text-gray-500">CR</span> {selectedMonster.cr}</span>
+                  </div>
+                  <p className="text-gray-400"><span className="text-gray-500">Sebesség:</span> {selectedMonster.speed}</p>
+                  <div className="grid grid-cols-6 gap-1 text-center">
+                    {(
+                      [
+                        ['STR', selectedMonster.str],
+                        ['DEX', selectedMonster.dex],
+                        ['CON', selectedMonster.con],
+                        ['INT', selectedMonster.int],
+                        ['WIS', selectedMonster.wis],
+                        ['CHA', selectedMonster.cha],
+                      ] as [string, number][]
+                    ).map(([label, val]) => (
+                      <div key={label} className="bg-gray-900/60 rounded py-1">
+                        <p className="text-gray-500 text-[10px]">{label}</p>
+                        <p className="text-gray-200 font-semibold">{val}</p>
+                        <p className="text-gray-400 text-[10px]">{mod(val)}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedMonster.senses && (
+                    <p className="text-gray-400 truncate"><span className="text-gray-500">Érzékek:</span> {selectedMonster.senses}</p>
+                  )}
+                </>
+              ) : null}
             </div>
           )}
 
@@ -285,8 +328,8 @@ export function TokenPanel({
                   </span>
                 </button>
 
-                {/* Kiválasztott token info panel */}
-                {isSelected && (
+                {/* Kiválasztott karakter token info panel (encounter tokenek modálban nyílnak) */}
+                {isSelected && token.type !== 'encounter' && (
                   <div className="mt-1 pl-1">
                     <TokenInfo
                       token={token}

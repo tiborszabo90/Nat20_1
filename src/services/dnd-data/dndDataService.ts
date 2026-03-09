@@ -3,7 +3,7 @@ import type { Condition } from '../../types/dnd/condition'
 import type { DndClass } from '../../types/dnd/class'
 import type { Species } from '../../types/dnd/species'
 import type { Background } from '../../types/dnd/background'
-import type { Monster } from '../../types/dnd/monster'
+import type { Monster, MonsterSummary } from '../../types/dnd/monster'
 import { getCached, setCached } from './indexedDbCache'
 
 const OPEN5E_BASE = 'https://api.open5e.com'
@@ -34,6 +34,12 @@ interface RawEntry {
   book: string
 }
 
+interface RawMonsterAction {
+  name: string
+  desc: string
+  attack_bonus?: number
+}
+
 // Nyers open5e v1 monster struktúra
 interface RawMonster {
   slug: string
@@ -54,11 +60,28 @@ interface RawMonster {
   wisdom: number
   charisma: number
   challenge_rating: string
+  xp: number
   senses: string
   languages: string
+  strength_save: number | null
+  dexterity_save: number | null
+  constitution_save: number | null
+  intelligence_save: number | null
+  wisdom_save: number | null
+  charisma_save: number | null
+  skills: Record<string, number> | string | null
+  damage_vulnerabilities: string
+  damage_resistances: string
+  damage_immunities: string
+  condition_immunities: string
+  special_abilities: RawMonsterAction[] | null
+  actions: RawMonsterAction[] | null
+  reactions: RawMonsterAction[] | null
+  legendary_desc: string
+  legendary_actions: RawMonsterAction[] | null
 }
 
-// Rekurzív lapozó: conditions és monsters esetén szükséges (open5e)
+// Rekurzív lapozó: conditions esetén szükséges (open5e)
 async function fetchAllPages<T>(url: string): Promise<T[]> {
   const results: T[] = []
   let nextUrl: string | null = url
@@ -176,14 +199,28 @@ async function fetchSpells(): Promise<Spell[]> {
   })
 }
 
-async function fetchMonsters(): Promise<Monster[]> {
-  const url = `${OPEN5E_BASE}/v1/monsters/?limit=${PAGE_SIZE}`
-  const raw = await fetchAllPages<RawMonster>(url)
-  return raw.map(m => ({
+// Saving throw mezők formázása egységes stringgé
+function formatSaves(m: RawMonster): string | undefined {
+  const entries: [string, number | null][] = [
+    ['Str', m.strength_save], ['Dex', m.dexterity_save],
+    ['Con', m.constitution_save], ['Int', m.intelligence_save],
+    ['Wis', m.wisdom_save], ['Cha', m.charisma_save],
+  ]
+  const result = entries
+    .filter(([, v]) => v !== null)
+    .map(([label, v]) => `${label} ${v! >= 0 ? '+' : ''}${v}`)
+    .join(', ')
+  return result || undefined
+}
+
+// Nyers API adat → Monster interface
+function mapMonster(m: RawMonster): Monster {
+  return {
     key: m.slug,
     name: m.name,
     size: m.size,
     type: m.type,
+    subtype: m.subtype || undefined,
     alignment: m.alignment,
     ac: m.armor_class,
     acDesc: m.armor_desc ?? '',
@@ -197,9 +234,72 @@ async function fetchMonsters(): Promise<Monster[]> {
     wis: m.wisdom,
     cha: m.charisma,
     cr: m.challenge_rating,
+    xp: m.xp || undefined,
     senses: m.senses,
     languages: m.languages,
-  }))
+    savingThrows: formatSaves(m),
+    skills: m.skills
+      ? typeof m.skills === 'object'
+        ? Object.entries(m.skills)
+            .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)} ${v >= 0 ? '+' : ''}${v}`)
+            .join(', ')
+        : m.skills
+      : undefined,
+    damageVulnerabilities: m.damage_vulnerabilities || undefined,
+    damageResistances: m.damage_resistances || undefined,
+    damageImmunities: m.damage_immunities || undefined,
+    conditionImmunities: m.condition_immunities || undefined,
+    traits: m.special_abilities?.map(a => ({ name: a.name, desc: a.desc, attackBonus: a.attack_bonus })) ?? undefined,
+    actions: m.actions?.map(a => ({ name: a.name, desc: a.desc, attackBonus: a.attack_bonus })) ?? undefined,
+    reactions: m.reactions?.map(a => ({ name: a.name, desc: a.desc })) ?? undefined,
+    legendaryDesc: m.legendary_desc || undefined,
+    legendaryActions: m.legendary_actions?.map(a => ({ name: a.name, desc: a.desc })) ?? undefined,
+  }
+}
+
+// Nyers névindex entry – csak a keresőhöz szükséges mezők
+interface RawMonsterSummary {
+  slug: string
+  name: string
+  challenge_rating: string
+  type: string
+}
+
+// Monster névindex háttérben, oldalanként – csak nevet és alap adatokat tölt (gyors)
+export async function loadMonsterIndexBackground(
+  onPage: (items: MonsterSummary[]) => void
+): Promise<void> {
+  let nextUrl: string | null =
+    `${OPEN5E_BASE}/v1/monsters/?limit=${PAGE_SIZE}&fields=slug,name,challenge_rating,type`
+  while (nextUrl !== null) {
+    const resp = await fetch(nextUrl)
+    if (!resp.ok) return
+    const page = (await resp.json()) as PagedResponse<RawMonsterSummary>
+    onPage(page.results.map(m => ({
+      key: m.slug,
+      name: m.name,
+      cr: m.challenge_rating,
+      type: m.type,
+    })))
+    nextUrl = page.next
+  }
+}
+
+// Live monster keresés a TokenPanel dropdownhoz (max 8 találat)
+export async function searchMonsters(query: string): Promise<Monster[]> {
+  const url = `${OPEN5E_BASE}/v1/monsters/?search=${encodeURIComponent(query)}&limit=8`
+  const response = await fetch(url)
+  if (!response.ok) return []
+  const page = (await response.json()) as PagedResponse<RawMonster>
+  return page.results.map(mapMonster)
+}
+
+// Egy monster teljes adatlapja slug alapján (token kiválasztáskor)
+export async function fetchMonsterBySlug(slug: string): Promise<Monster | null> {
+  const response = await fetch(`${OPEN5E_BASE}/v1/monsters/${encodeURIComponent(slug)}/`)
+  if (!response.ok) return null
+  const raw = (await response.json()) as RawMonster
+  return mapMonster(raw)
 }
 
 export interface AllDndData {
@@ -208,11 +308,10 @@ export interface AllDndData {
   classes: DndClass[]
   species: Species[]
   backgrounds: Background[]
-  monsters: Monster[]
 }
 
 // Főbelépési pont: cache-ből tölt ha friss, egyébként API-ból
-// Csak a lejárt store-okat fetcheli újra (részleges cache refresh)
+// Monsters nincs itt – on-demand töltődnek token kiválasztáskor
 export async function loadAllDndData(): Promise<AllDndData> {
   const [
     cachedSpells,
@@ -220,14 +319,12 @@ export async function loadAllDndData(): Promise<AllDndData> {
     cachedClasses,
     cachedSpecies,
     cachedBackgrounds,
-    cachedMonsters,
   ] = await Promise.all([
     getCached('spells'),
     getCached('conditions'),
     getCached('classes'),
     getCached('species'),
     getCached('backgrounds'),
-    getCached('monsters'),
   ])
 
   if (
@@ -235,8 +332,7 @@ export async function loadAllDndData(): Promise<AllDndData> {
     cachedConditions &&
     cachedClasses &&
     cachedSpecies &&
-    cachedBackgrounds &&
-    cachedMonsters
+    cachedBackgrounds
   ) {
     return {
       spells: cachedSpells,
@@ -244,17 +340,15 @@ export async function loadAllDndData(): Promise<AllDndData> {
       classes: cachedClasses,
       species: cachedSpecies,
       backgrounds: cachedBackgrounds,
-      monsters: cachedMonsters,
     }
   }
 
-  const [spells, conditions, classes, species, backgrounds, monsters] = await Promise.all([
+  const [spells, conditions, classes, species, backgrounds] = await Promise.all([
     cachedSpells ?? fetchSpells(),
     cachedConditions ?? fetchConditions(),
     cachedClasses ?? fetchClasses(),
     cachedSpecies ?? fetchSpecies(),
     cachedBackgrounds ?? fetchBackgrounds(),
-    cachedMonsters ?? fetchMonsters(),
   ])
 
   const saves: Promise<void>[] = []
@@ -263,8 +357,7 @@ export async function loadAllDndData(): Promise<AllDndData> {
   if (!cachedClasses) saves.push(setCached('classes', classes))
   if (!cachedSpecies) saves.push(setCached('species', species))
   if (!cachedBackgrounds) saves.push(setCached('backgrounds', backgrounds))
-  if (!cachedMonsters) saves.push(setCached('monsters', monsters))
   await Promise.all(saves)
 
-  return { spells, conditions, classes, species, backgrounds, monsters }
+  return { spells, conditions, classes, species, backgrounds }
 }

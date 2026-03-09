@@ -207,40 +207,44 @@ export function CharacterBuilderPage() {
 
   const SPELL_OPT_COUNT = needsSpellStep ? 1 : 0
 
+  // Sorrend: Kaszt → kaszt al-választások → Faj → faji al-választás → Háttér → Skill → Nyelvek → ...
   const STEPS = [
-    'Kaszt', 'Faj',
+    'Kaszt',
+    ...CLASS_OPT_STEPS,
+    'Faj',
     ...SPECIES_OPT_STEPS,
     'Háttér', 'Skill Jártasságok',
-    ...CLASS_OPT_STEPS,
     'Nyelvek', 'Képességpontok',
     ...(needsSpellStep ? ['Varázsatok'] : []),
     'Felszerelés', 'Összefoglaló',
   ]
 
   // --- Step index aliasok ---
-  // Faji opcionális lépés (ha van): index 2
-  const S_SPECIES_OPT = SPECIES_OPT_COUNT > 0 ? 2 : -1
-  // Háttér és Skill az opcionális után
-  const S_BACKGROUND = 2 + SPECIES_OPT_COUNT
-  const S_SKILLS     = 3 + SPECIES_OPT_COUNT
-  // Kaszt opcionálisak
-  const classOptBase = 4 + SPECIES_OPT_COUNT
+  // Kaszt al-választások: közvetlenül step 0 után
+  const classOptBase = 1
   const S_EXPERTISE    = needsExpertise     ? classOptBase : -1
   const S_WM           = needsWeaponMastery ? classOptBase + (needsExpertise ? 1 : 0) : -1
   const S_INSTRUMENTS  = needsInstruments   ? classOptBase + (needsExpertise ? 1 : 0) + (needsWeaponMastery ? 1 : 0) : -1
   const S_DIVINE_ORDER = needsDivineOrder   ? classOptBase + (needsExpertise ? 1 : 0) + (needsWeaponMastery ? 1 : 0) + (needsInstruments ? 1 : 0) : -1
   const S_PRIMAL_ORDER        = needsPrimalOrder        ? classOptBase + (needsExpertise ? 1 : 0) + (needsWeaponMastery ? 1 : 0) + (needsInstruments ? 1 : 0) + (needsDivineOrder ? 1 : 0) : -1
   const S_ELDRITCH_INVOCATION = needsEldritchInvocation ? classOptBase + (needsExpertise ? 1 : 0) + (needsWeaponMastery ? 1 : 0) + (needsInstruments ? 1 : 0) + (needsDivineOrder ? 1 : 0) + (needsPrimalOrder ? 1 : 0) : -1
+  // Faj és faji al-választás
+  const speciesBase   = 1 + CLASS_OPT_COUNT
+  const S_SPECIES_OPT = SPECIES_OPT_COUNT > 0 ? speciesBase + 1 : -1
+  // Háttér és Skill
+  const S_BACKGROUND = speciesBase + 1 + SPECIES_OPT_COUNT
+  const S_SKILLS     = speciesBase + 2 + SPECIES_OPT_COUNT
   // Tail lépések
-  const S_LANGUAGES  = classOptBase + CLASS_OPT_COUNT
-  const S_ABILITY    = classOptBase + CLASS_OPT_COUNT + 1
-  const S_SPELLS     = needsSpellStep ? classOptBase + CLASS_OPT_COUNT + 2 : -1
-  const S_EQUIPMENT  = classOptBase + CLASS_OPT_COUNT + 2 + SPELL_OPT_COUNT
-  const S_REVIEW     = classOptBase + CLASS_OPT_COUNT + 3 + SPELL_OPT_COUNT
+  const tailBase    = speciesBase + 3 + SPECIES_OPT_COUNT
+  const S_LANGUAGES = tailBase
+  const S_ABILITY   = tailBase + 1
+  const S_SPELLS    = needsSpellStep ? tailBase + 2 : -1
+  const S_EQUIPMENT = tailBase + 2 + SPELL_OPT_COUNT
+  const S_REVIEW    = tailBase + 3 + SPELL_OPT_COUNT
 
   function canProceed(): boolean {
     if (step === 0) return !!classKey
-    if (step === 1) return !!speciesKey
+    if (step === speciesBase) return !!speciesKey
 
     // Faji opcionális lépés
     if (step === S_SPECIES_OPT) {
@@ -425,27 +429,8 @@ export function CharacterBuilderPage() {
 
   return (
     <div className="min-h-screen bg-surface-base text-white flex flex-col">
-      {/* Fejléc + lépés jelző */}
-      <div className="px-4 pt-6 pb-4 border-b border-border-subtle">
-        <p className="text-text-subtle text-xs mb-2 text-center">Karakterlétrehozó</p>
-        <div className="flex justify-center gap-1.5">
-          {STEPS.map((label, i) => (
-            <div
-              key={i}
-              className={`h-1.5 rounded-full transition-all ${
-                i < step ? 'bg-accent-hover w-8' : i === step ? 'bg-accent w-8' : 'bg-neutral w-4'
-              }`}
-              title={label}
-            />
-          ))}
-        </div>
-        <p className="text-center text-text-muted text-xs mt-2">
-          {step + 1}/{STEPS.length} – {STEPS[step]}
-        </p>
-      </div>
-
       {/* Lépés tartalma */}
-      <div className="flex-1 overflow-y-auto p-4 pb-24">
+      <div className="flex-1 overflow-y-auto p-4 pb-4">
         {step === 0 && (
           <StepClass
             classes={classes}
@@ -459,14 +444,14 @@ export function CharacterBuilderPage() {
             }}
           />
         )}
-        {step === 1 && (
+        {step === speciesBase && (
           <StepSpecies
             species={species}
             selectedKey={speciesKey}
             onSelect={key => { setSpeciesKey(key); resetSpeciesState() }}
           />
         )}
-        {/* Faji opcionális lépés (index 2, ha van) */}
+        {/* Faji opcionális lépés */}
         {step === S_SPECIES_OPT && needsAncestry && (
           <StepDraconicAncestry selected={draconicAncestry} onChange={setDraconicAncestry} />
         )}
@@ -655,9 +640,23 @@ export function CharacterBuilderPage() {
         {error && <p className="text-red-400 text-sm text-center mt-4">{error}</p>}
       </div>
 
-      {/* Navigációs gombok – sticky */}
-      {(step > 0 || step < S_REVIEW) && (
-        <div className="sticky bottom-0 bg-surface-base/95 backdrop-blur border-t border-border-subtle p-4 flex gap-3">
+      {/* Sticky alsó bar: lépésjelző + navigáció */}
+      <div className="sticky bottom-0 bg-surface-base/95 backdrop-blur border-t border-border-subtle">
+        <div className="px-4 pt-2.5 pb-1 flex flex-col items-center gap-1">
+          <div className="flex justify-center gap-1">
+            {STEPS.map((label, i) => (
+              <div
+                key={i}
+                className={`h-1 rounded-full transition-all ${
+                  i < step ? 'bg-accent-hover w-5' : i === step ? 'bg-accent w-5' : 'bg-surface-overlay w-3'
+                }`}
+                title={label}
+              />
+            ))}
+          </div>
+          <p className="text-text-muted text-[10px]">{step + 1}/{STEPS.length} – {STEPS[step]}</p>
+        </div>
+        <div className="px-4 pb-4 flex gap-3">
           {step > 0 && (
             <button
               onClick={() => setStep(s => s - 1)}
@@ -676,7 +675,7 @@ export function CharacterBuilderPage() {
             </button>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

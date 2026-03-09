@@ -13,7 +13,6 @@ import { useBattlemapStore } from '../../store/battlemapStore'
 import type { BattlemapState, BattlemapToken } from '../../types/app/map'
 
 const CELL_SIZE = 32
-const TOKEN_RADIUS = CELL_SIZE * 0.38
 
 function redrawGrid(g: Graphics, cols: number, rows: number) {
   g.clear()
@@ -57,25 +56,27 @@ function redrawTokens(
 ) {
   container.removeChildren()
   for (const token of Object.values(tokens)) {
-    const cx = token.col * CELL_SIZE + CELL_SIZE / 2
-    const cy = token.row * CELL_SIZE + CELL_SIZE / 2
+    const cellCount = token.tokenSize ?? 1
+    const radius = CELL_SIZE * cellCount / 2 * 0.9
+    const cx = token.col * CELL_SIZE + CELL_SIZE * cellCount / 2
+    const cy = token.row * CELL_SIZE + CELL_SIZE * cellCount / 2
     const color = hexToNumber(token.color)
     const isSelected = token.id === selectedId
 
     const circle = new Graphics()
     // Kiválasztott token köré amber kiemelő gyűrű
     if (isSelected) {
-      circle.circle(0, 0, TOKEN_RADIUS + 4).stroke({ color: 0xfbbf24, width: 3, alpha: 1 })
+      circle.circle(0, 0, radius + 4).stroke({ color: 0xfbbf24, width: 3, alpha: 1 })
     }
-    circle.circle(0, 0, TOKEN_RADIUS).fill({ color, alpha: 0.9 })
-    circle.circle(0, 0, TOKEN_RADIUS).stroke({ color: 0xffffff, width: 1.5, alpha: 0.6 })
+    circle.circle(0, 0, radius).fill({ color, alpha: 0.9 })
+    circle.circle(0, 0, radius).stroke({ color: 0xffffff, width: 1.5, alpha: 0.6 })
     circle.x = cx
     circle.y = cy
 
     const label = new Text({
       text: token.label.slice(0, 2).toUpperCase(),
       style: {
-        fontSize: 11,
+        fontSize: Math.round(CELL_SIZE * cellCount * 0.35),
         fill: 0xffffff,
         fontWeight: 'bold',
         align: 'center',
@@ -228,7 +229,10 @@ export function BattlemapCanvas({
 
       function getTokenAtCell(col: number, row: number): BattlemapToken | null {
         const tokens = battlemapRef.current.tokens
-        return Object.values(tokens).find(t => t.col === col && t.row === row) ?? null
+        return Object.values(tokens).find(t => {
+          const s = t.tokenSize ?? 1
+          return col >= t.col && col < t.col + s && row >= t.row && row < t.row + s
+        }) ?? null
       }
 
       // ── Zoom ──

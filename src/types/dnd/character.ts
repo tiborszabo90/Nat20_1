@@ -58,6 +58,10 @@ export interface Character {
   spellSlots: number[] | null
   // Elhasznált spell slotok, index 0 = 1st level
   usedSpellSlots: number[]
+  avatarUrl?: string
+  heroicInspiration?: boolean
+  activeConditions?: string[]
+  usedHitDice?: number
   createdAt: Timestamp
   updatedAt: Timestamp
 }

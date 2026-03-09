@@ -7,12 +7,13 @@ export function DmDashboardPage() {
   const navigate = useNavigate()
   const setCampaign = useCampaignStore(s => s.setCampaign)
 
-  // Store-ba töltjük a kampánykódot, hogy useFirestoreSync tudja melyikre figyeljen
+  // Store-ba töltjük a kampánykódot, majd azonnal a battlemap-re irányítunk
   useEffect(() => {
     if (campaignId) {
       setCampaign(campaignId, '', 'dm')
+      navigate(`/dm/${campaignId}/battlemap`, { replace: true })
     }
-  }, [campaignId, setCampaign])
+  }, [campaignId, setCampaign, navigate])
 
   return (
     <div className="min-h-screen bg-surface-base text-white flex flex-col items-center justify-center p-6">

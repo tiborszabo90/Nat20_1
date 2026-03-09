@@ -8,6 +8,9 @@ interface CharacterState {
   setContextMode: (mode: ContextMode) => void
   // Optimista frissítés – UI azonnal reagál, Firestore write aszinkron fut
   updateHpLocal: (currentHp: number, temporaryHp: number) => void
+  updateHeroicInspirationLocal: (heroicInspiration: boolean) => void
+  updateConditionsLocal: (activeConditions: string[]) => void
+  updateUsedHitDiceLocal: (usedHitDice: number) => void
   useSpellSlotLocal: (slotLevel: number) => void
   restoreSpellSlotsLocal: () => void
   clearCharacter: () => void
@@ -25,6 +28,27 @@ export const useCharacterStore = create<CharacterState>((set) => ({
     set((state) =>
       state.character
         ? { character: { ...state.character, currentHp, temporaryHp } }
+        : {}
+    ),
+
+  updateHeroicInspirationLocal: (heroicInspiration) =>
+    set((state) =>
+      state.character
+        ? { character: { ...state.character, heroicInspiration } }
+        : {}
+    ),
+
+  updateConditionsLocal: (activeConditions) =>
+    set((state) =>
+      state.character
+        ? { character: { ...state.character, activeConditions } }
+        : {}
+    ),
+
+  updateUsedHitDiceLocal: (usedHitDice) =>
+    set((state) =>
+      state.character
+        ? { character: { ...state.character, usedHitDice } }
         : {}
     ),
 

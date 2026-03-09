@@ -9,6 +9,7 @@ import { useDndDataStore } from '../store/dndDataStore'
 import { useBattlemapSync } from '../hooks/useBattlemapSync'
 import { useCombatSync } from '../hooks/useCombatSync'
 import { useFirestoreSync } from '../hooks/useFirestoreSync'
+import { useDndMonsterIndex } from '../hooks/useDndMonsterIndex'
 import { initBattlemap, addBattlemapToken } from '../services/firebase/battlemapService'
 import {
   startInitiative,
@@ -18,9 +19,11 @@ import {
   stopCombat,
 } from '../services/firebase/combatService'
 import { getAbilityModifier } from '../data/dndConstants'
+import { fetchMonsterBySlug } from '../services/dnd-data/dndDataService'
 import { BattlemapCanvas } from '../components/map/BattlemapCanvas'
 import { BattlemapControls } from '../components/map/BattlemapControls'
 import { TokenPanel } from '../components/map/TokenPanel'
+import { TokenInfoModal } from '../components/map/TokenInfoModal'
 import { InitiativeModal } from '../components/map/InitiativeModal'
 import { CombatTurnPanel } from '../components/map/CombatTurnPanel'
 import type { BattlemapToken } from '../types/app/map'
@@ -45,7 +48,8 @@ export function BattlemapPage() {
   const character = useCharacterStore(s => s.character)
   const combat = useCombatStore(s => s.combat)
   const uid = useAuthStore(s => s.uid)
-  const dndMonsters = useDndDataStore(s => s.monsters)
+  const monsterCache = useDndDataStore(s => s.monsterCache)
+  const cacheMonster = useDndDataStore(s => s.cacheMonster)
 
   // Combat DM state – szörnyenként a d20 dobás értéke + globális szerkesztés mód
   const [monsterD20Values, setMonsterD20Values] = useState<Record<string, string>>({})
@@ -96,6 +100,7 @@ export function BattlemapPage() {
   useBattlemapSync()
   useCombatSync()
   useFirestoreSync()
+  useDndMonsterIndex() // Monster névindex háttérbetöltése (TokenPanel keresőhöz)
 
   // DM: ha még nincs battlemap, auto-init
   useEffect(() => {
@@ -123,13 +128,17 @@ export function BattlemapPage() {
     if (!campaignCode || !battlemap) return
     setStarting(true)
     try {
-      // Szörny DEX modok kiszámítása a token monsterKey alapján
+      // Hiányzó monsterek párhuzamos fetch-je a cache-be (ha monsterIndex sem tartalmazza)
+      const encounterTokens = Object.values(battlemap.tokens).filter(t => t.type === 'encounter' && t.monsterKey)
+      await Promise.all(
+        encounterTokens
+          .filter(t => !monsterCache.has(t.monsterKey!))
+          .map(t => fetchMonsterBySlug(t.monsterKey!).then(m => { if (m) cacheMonster(m) }))
+      )
+      // Szörny DEX modok kiszámítása: cache → 0
       const dexMods: Record<string, number> = {}
-      for (const token of Object.values(battlemap.tokens)) {
-        if (token.type !== 'encounter') continue
-        const monster = token.monsterKey
-          ? dndMonsters.find(m => m.key === token.monsterKey)
-          : null
+      for (const token of encounterTokens) {
+        const monster = token.monsterKey ? monsterCache.get(token.monsterKey) : undefined
         dexMods[token.id] = monster ? getAbilityModifier(monster.dex) : 0
       }
       await startInitiative(campaignCode, dexMods)
@@ -200,6 +209,10 @@ export function BattlemapPage() {
 
   const isDm = role === 'dm'
   const backPath = isDm ? `/dm/${campaignId}` : `/player/${campaignId}/sheet`
+
+  // Encounter token modal
+  const selectedToken = selectedTokenId && battlemap ? battlemap.tokens[selectedTokenId] ?? null : null
+  const encounterModalToken = selectedToken?.type === 'encounter' ? selectedToken : null
 
   // Derived combat values
   const monsters = combat ? Object.values(combat.participants).filter(p => p.type === 'monster') : []
@@ -370,7 +383,16 @@ export function BattlemapPage() {
       </div>
 
       {/* Canvas terület */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+
+        {/* Tudástár gomb – jobb felső sarok */}
+        <button
+          onClick={() => navigate(isDm ? `/dm/${campaignId}/encyclopedia` : `/player/${campaignId}/encyclopedia`)}
+          className="absolute top-3 right-3 z-10 bg-surface-raised hover:bg-surface-hover border border-border hover:border-border-hover text-text-muted hover:text-white rounded-btn px-3 py-2 text-sm transition-colors flex items-center gap-1.5"
+          title="Tudástár"
+        >
+          📖
+        </button>
 
         {/* ── Initiative modal – DM és játékos egyaránt ── */}
         {combat?.phase === 'initiative' && (
@@ -426,6 +448,15 @@ export function BattlemapPage() {
           )}
         </div>
       </div>
+      {/* Encounter token info modal */}
+      {encounterModalToken && campaignCode && (
+        <TokenInfoModal
+          token={encounterModalToken}
+          campaignCode={campaignCode}
+          readOnly={!isDm}
+          onClose={() => setSelectedTokenId(null)}
+        />
+      )}
     </div>
   )
 }

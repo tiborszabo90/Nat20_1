@@ -29,14 +29,14 @@ interface TokenInfoProps {
 }
 
 export function TokenInfo({ token, characters, campaignCode, readOnly = false }: TokenInfoProps) {
-  const monsters = useDndDataStore(s => s.monsters)
+  const monsterCache = useDndDataStore(s => s.monsterCache)
   const updateTokenHpLocal = useBattlemapStore(s => s.updateTokenHpLocal)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Encounter token ──────────────────────────────────────────
   const isEncounter = token.type === 'encounter'
   const monster = isEncounter && token.monsterKey
-    ? monsters.find(m => m.key === token.monsterKey) ?? null
+    ? monsterCache.get(token.monsterKey) ?? null
     : null
 
   const encMaxHp = token.maxHp ?? monster?.hp ?? 0

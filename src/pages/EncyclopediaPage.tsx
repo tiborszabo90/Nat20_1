@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useDndDataStore } from '../store/dndDataStore'
+import { useCampaignStore } from '../store/campaignStore'
 import { SpellDetailCard } from '../components/character/sheet/SpellDetailCard'
 import { EncyclopediaEntry } from '../components/encyclopedia/EncyclopediaEntry'
 import { CLASS_SPELL_NAME } from '../data/dndConstants'
@@ -27,7 +28,17 @@ const SPELL_CLASSES = Object.values(CLASS_SPELL_NAME)
 
 export function EncyclopediaPage() {
   const navigate = useNavigate()
+  const { campaignId } = useParams<{ campaignId: string }>()
+  const role = useCampaignStore(s => s.role)
   const { spells: spellsMap, conditions, classes, species, backgrounds, isLoading } = useDndDataStore()
+
+  function handleBack() {
+    if (campaignId) {
+      navigate(role === 'dm' ? `/dm/${campaignId}/battlemap` : `/player/${campaignId}/battlemap`)
+    } else {
+      navigate(-1)
+    }
+  }
 
   const [category, setCategory] = useState<EncyclopediaCategory>('spells')
   const [search, setSearch] = useState('')
@@ -75,7 +86,7 @@ export function EncyclopediaPage() {
       {/* Fejléc */}
       <div className="px-4 pt-5 pb-3 border-b border-border-subtle flex items-center gap-3">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="text-text-muted hover:text-white text-lg shrink-0"
         >
           ←

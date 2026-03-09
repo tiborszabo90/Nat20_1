@@ -87,6 +87,24 @@ export async function updateHp(
   await updateDoc(ref, { currentHp, temporaryHp, updatedAt: serverTimestamp() })
 }
 
+export async function updateConditions(
+  campaignCode: string,
+  characterId: string,
+  activeConditions: string[]
+): Promise<void> {
+  const ref = doc(db, CAMPAIGNS, campaignCode, CHARACTERS, characterId)
+  await updateDoc(ref, { activeConditions, updatedAt: serverTimestamp() })
+}
+
+export async function updateHeroicInspiration(
+  campaignCode: string,
+  characterId: string,
+  heroicInspiration: boolean
+): Promise<void> {
+  const ref = doc(db, CAMPAIGNS, campaignCode, CHARACTERS, characterId)
+  await updateDoc(ref, { heroicInspiration, updatedAt: serverTimestamp() })
+}
+
 export async function useSpellSlot(
   campaignCode: string,
   characterId: string,
@@ -105,4 +123,13 @@ export async function restoreSpellSlots(
 ): Promise<void> {
   const ref = doc(db, CAMPAIGNS, campaignCode, CHARACTERS, characterId)
   await updateDoc(ref, { usedSpellSlots: [0,0,0,0,0,0,0,0,0], updatedAt: serverTimestamp() })
+}
+
+export async function updateUsedHitDice(
+  campaignCode: string,
+  characterId: string,
+  usedHitDice: number
+): Promise<void> {
+  const ref = doc(db, CAMPAIGNS, campaignCode, CHARACTERS, characterId)
+  await updateDoc(ref, { usedHitDice, updatedAt: serverTimestamp() })
 }

@@ -48,13 +48,13 @@ export function useFirestoreSync(): void {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const data = change.doc.data()
-          const event: AppCampaignEvent = {
+          const event = {
             id: change.doc.id,
             type: data['type'] as AppCampaignEvent['type'],
             payload: data['payload'] as AppCampaignEvent['payload'],
             fromUid: data['fromUid'] as string,
             createdAt: data['createdAt'],
-          }
+          } as AppCampaignEvent
 
           addEvent(event)
 

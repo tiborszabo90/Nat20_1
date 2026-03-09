@@ -20,7 +20,7 @@ export function TurnTracker() {
 
       {/* Sorrend */}
       <div className="divide-y divide-border-subtle">
-        {turnOrder.map((id, idx) => {
+        {turnOrder.map((id) => {
           const p          = participants[id]
           if (!p) return null
           const isCurrent  = id === currentId

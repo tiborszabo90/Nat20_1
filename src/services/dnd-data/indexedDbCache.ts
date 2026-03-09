@@ -49,8 +49,6 @@ function isFresh(fetchedAt: number): boolean {
   return Date.now() - fetchedAt < CACHE_TTL_MS
 }
 
-type StoreName = keyof Nat20DBSchema
-
 type StoreDataMap = {
   spells: Spell[]
   conditions: Condition[]
@@ -59,6 +57,8 @@ type StoreDataMap = {
   backgrounds: Background[]
   monsters: MonsterSummary[]
 }
+
+type StoreName = 'spells' | 'conditions' | 'classes' | 'species' | 'backgrounds' | 'monsters'
 
 export async function getCached<K extends StoreName>(
   store: K
@@ -74,5 +74,6 @@ export async function setCached<K extends StoreName>(
   data: StoreDataMap[K]
 ): Promise<void> {
   const db = await getDb()
-  await db.put(store, { data, fetchedAt: Date.now() }, store)
+  const value = { data, fetchedAt: Date.now() } as Nat20DBSchema[K]['value']
+  await db.put(store, value, store)
 }

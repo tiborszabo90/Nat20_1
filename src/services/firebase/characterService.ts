@@ -36,7 +36,25 @@ export interface CreateCharacterData {
   weaponMasteries: string[]
   instrumentProficiencies: string[]
   divineOrder: string | null
+  primalOrder: string | null
+  expertiseSkills: string[]
+  eldritchInvocations: string[]
   languages: string[]
+  speciesSize: string | null
+  draconicAncestry: string | null
+  elvenLineage: string | null
+  elvenSpellcastingAbility: string | null
+  gnomishLineage: string | null
+  gnomishSpellcastingAbility: string | null
+  giantAncestry: string | null
+  tieflingLegacy: string | null
+  tieflingSpellcastingAbility: string | null
+  humanVersatileFeat: string | null
+  knownCantrips: string[]
+  knownSpells: string[]
+  magicInitiateCantrips: string[]
+  magicInitiateSpell: string | null
+  starterEquipment: string[]
   spellSlots: number[] | null
   usedSpellSlots: number[]
 }

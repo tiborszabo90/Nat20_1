@@ -22,7 +22,7 @@ const ABILITY_NAMES: Record<Ability, string> = {
   INT: 'Intelligence', WIS: 'Wisdom', CHA: 'Charisma',
 }
 
-export function StepAbilityScores({ baseScores, bonuses, onChange }: Props) {
+export function StepAbilityScores({ baseScores: _baseScores, bonuses, onChange }: Props) {
   const [method, setMethod] = useState<Method>('standard')
   // Standard Array: melyik ability-hoz melyik értéket rendelték
   const [assignments, setAssignments] = useState<Partial<Record<Ability, number>>>({})

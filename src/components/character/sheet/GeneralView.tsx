@@ -29,7 +29,6 @@ export function GeneralView({ character }: Props) {
   const pb = getProficiencyBonus(character.level)
   const spellsMap = useDndDataStore(s => s.spells)
   const getSpellName = (key: string) => spellsMap.get(key)?.name ?? key
-  const getSpellSchool = (key: string) => spellsMap.get(key)?.school ?? ''
 
   // ── HP kezelés ────────────────────────────────────────────────
   const updateHpLocal = useCharacterStore(s => s.updateHpLocal)
@@ -77,8 +76,6 @@ export function GeneralView({ character }: Props) {
     void updateHeroicInspiration(character.campaignCode, character.id, next)
   }
 
-  const hpPct = character.maxHp > 0 ? Math.round((localCurrentHp / character.maxHp) * 100) : 0
-  const hpBarColor = hpPct > 50 ? 'bg-green-500' : hpPct > 25 ? 'bg-yellow-400' : 'bg-red-500'
   const inputAmount = parseInt(hpInput)
   const validInput = !isNaN(inputAmount) && inputAmount > 0
 
@@ -244,12 +241,6 @@ export function GeneralView({ character }: Props) {
   const hdTotal = character.level
   const hdUsed = character.usedHitDice ?? 0
   const hdRemaining = Math.max(0, hdTotal - hdUsed)
-  function hdSpend() {
-    if (hdRemaining <= 0) return
-    const next = hdUsed + 1
-    updateUsedHitDiceLocal(next)
-    void updateUsedHitDice(character.campaignCode, character.id, next)
-  }
   function hdShortRest() {
     if (hdUsed <= 0) return
     const next = Math.max(0, hdUsed - Math.max(1, Math.floor(hdTotal / 2)))

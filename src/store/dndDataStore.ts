@@ -5,6 +5,7 @@ import type { DndClass } from '../types/dnd/class'
 import type { Species } from '../types/dnd/species'
 import type { Background } from '../types/dnd/background'
 import type { Monster, MonsterSummary } from '../types/dnd/monster'
+import type { SpellSlotTable } from '../services/dnd-data/indexedDbCache'
 
 // Varázslatok Map-ként: key → Spell (O(1) keresés Phase 4 AI-hoz)
 type SpellMap = Map<string, Spell>
@@ -15,6 +16,8 @@ interface DndDataState {
   classes: DndClass[]
   species: Species[]
   backgrounds: Background[]
+  // Spell slot táblák open5e v2-ből: kaszt key → szintenként slot tömb
+  spellTables: Record<string, SpellSlotTable>
   // Monster névindex – progresszívan töltődik háttérben (kereséshez), csak összefoglaló adatok
   monsterIndex: MonsterSummary[]
   isLoadingMonsterIndex: boolean
@@ -28,6 +31,7 @@ interface DndDataState {
     classes: DndClass[]
     species: Species[]
     backgrounds: Background[]
+    spellTables: Record<string, SpellSlotTable>
   }) => void
   appendMonsters: (items: MonsterSummary[]) => void
   setLoadingMonsterIndex: (v: boolean) => void
@@ -42,19 +46,21 @@ export const useDndDataStore = create<DndDataState>((set) => ({
   classes: [],
   species: [],
   backgrounds: [],
+  spellTables: {},
   monsterIndex: [],
   isLoadingMonsterIndex: false,
   monsterCache: new Map(),
   isLoading: false,
   error: null,
 
-  setData: ({ spells, conditions, classes, species, backgrounds }) =>
+  setData: ({ spells, conditions, classes, species, backgrounds, spellTables }) =>
     set({
       spells: new Map(spells.map(s => [s.key, s])),
       conditions,
       classes,
       species,
       backgrounds,
+      spellTables,
       isLoading: false,
       error: null,
     }),

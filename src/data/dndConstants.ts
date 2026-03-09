@@ -499,56 +499,8 @@ export const CLASS_CASTER_TYPE: Record<string, CasterType> = {
   warlock:   'warlock',
 }
 
-// Spell Slot táblák – index 0 = null, index 1 = 1. szint, stb.
-// Minden sor: [1st, 2nd, 3rd, 4th, 5th, 6th, 7th, 8th, 9th] slot count
-// null = nincs slot ezen a szinten
-
-const FULL_CASTER_SLOTS: (number[] | null)[] = [
-  null,
-  [2,0,0,0,0,0,0,0,0], [3,0,0,0,0,0,0,0,0], [4,2,0,0,0,0,0,0,0], [4,3,0,0,0,0,0,0,0],
-  [4,3,2,0,0,0,0,0,0], [4,3,3,0,0,0,0,0,0], [4,3,3,1,0,0,0,0,0], [4,3,3,2,0,0,0,0,0],
-  [4,3,3,3,1,0,0,0,0], [4,3,3,3,2,0,0,0,0], [4,3,3,3,2,1,0,0,0], [4,3,3,3,2,1,0,0,0],
-  [4,3,3,3,2,1,1,0,0], [4,3,3,3,2,1,1,0,0], [4,3,3,3,2,1,1,1,0], [4,3,3,3,2,1,1,1,0],
-  [4,3,3,3,2,1,1,1,1], [4,3,3,3,3,1,1,1,1], [4,3,3,3,3,2,1,1,1], [4,3,3,3,3,2,2,1,1],
-]
-
-const HALF_CASTER_SLOTS: (number[] | null)[] = [
-  null,
-  null,
-  [2,0,0,0,0,0,0,0,0], [3,0,0,0,0,0,0,0,0], [3,0,0,0,0,0,0,0,0],
-  [4,2,0,0,0,0,0,0,0], [4,2,0,0,0,0,0,0,0], [4,3,0,0,0,0,0,0,0], [4,3,0,0,0,0,0,0,0],
-  [4,3,2,0,0,0,0,0,0], [4,3,2,0,0,0,0,0,0], [4,3,3,0,0,0,0,0,0], [4,3,3,0,0,0,0,0,0],
-  [4,3,3,1,0,0,0,0,0], [4,3,3,1,0,0,0,0,0], [4,3,3,2,0,0,0,0,0], [4,3,3,2,0,0,0,0,0],
-  [4,3,3,3,1,0,0,0,0], [4,3,3,3,1,0,0,0,0], [4,3,3,3,2,0,0,0,0], [4,3,3,3,2,0,0,0,0],
-]
-
-const THIRD_CASTER_SLOTS: (number[] | null)[] = [
-  null,
-  null,
-  [2,0,0,0,0,0,0,0,0], [3,0,0,0,0,0,0,0,0], [3,2,0,0,0,0,0,0,0],
-  [3,3,0,0,0,0,0,0,0], [3,3,0,0,0,0,0,0,0], [4,3,2,0,0,0,0,0,0], [4,3,3,0,0,0,0,0,0],
-  [4,3,3,0,0,0,0,0,0], [4,3,3,1,0,0,0,0,0], [4,3,3,2,0,0,0,0,0], [4,3,3,2,0,0,0,0,0],
-  [4,3,3,2,1,0,0,0,0], [4,3,3,2,1,0,0,0,0], [4,3,3,2,1,0,0,0,0], [4,3,3,2,1,1,0,0,0],
-  [4,3,3,2,1,1,0,0,0], [4,3,3,3,1,1,0,0,0], [4,3,3,3,2,1,0,0,0], [4,3,3,3,2,1,0,0,0],
-]
-
-export const SPELL_SLOTS: Record<string, (number[] | null)[]> = {
-  wizard:   FULL_CASTER_SLOTS,
-  sorcerer: FULL_CASTER_SLOTS,
-  cleric:   FULL_CASTER_SLOTS,
-  druid:    FULL_CASTER_SLOTS,
-  bard:     FULL_CASTER_SLOTS,
-  paladin:  HALF_CASTER_SLOTS,
-  ranger:   HALF_CASTER_SLOTS,
-  artificer: THIRD_CASTER_SLOTS,
-}
-
-// Warlock Pact Magic – index 0 = 1. szint
-// slots: hány Pact slot van | slotLevel: milyen szintű
-export const WARLOCK_PACT = {
-  slots:     [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4],
-  slotLevel: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
-}
+// Spell slot táblák az open5e v2 API-ból töltődnek (dndDataStore.spellTables)
+// Lásd: services/dnd-data/dndDataService.ts → fetchSpellTables()
 
 // --- Spellcasting (1. szint) ---
 
@@ -971,17 +923,3 @@ export const BACKGROUND_INFO: Record<string, { name: string; description: string
   wayfarer:    { name: 'Wayfarer',    description: 'You know the streets of towns and cities and how to navigate them to get whatever you need.',                                  skills: ['Insight', 'Stealth'] },
 }
 
-// Spell Slot tábla lekérdezése – null ha nem varázsló vagy nincs slot ezen a szinten
-export function getSpellSlots(classKey: string, level: number): number[] | null {
-  if (classKey === 'warlock') {
-    const idx = level - 1
-    const slots = WARLOCK_PACT.slots[idx]
-    const slotLvl = WARLOCK_PACT.slotLevel[idx]
-    if (!slots) return null
-    // Warlock: csak 1 slot szint, a többi 0
-    const result = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-    result[slotLvl - 1] = slots
-    return result
-  }
-  return SPELL_SLOTS[classKey]?.[level] ?? null
-}

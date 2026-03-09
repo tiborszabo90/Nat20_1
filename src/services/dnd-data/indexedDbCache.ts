@@ -10,7 +10,10 @@ import type { MonsterSummary } from '../../types/dnd/monster'
 // Az adatok érvényességi ideje: 7 nap milliszekundumban
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const DB_NAME = 'nat20-dnd-data-v4'
-const DB_VERSION = 2
+const DB_VERSION = 3
+
+// Spell slot tábla típus: index 0 = null, index 1-20 = szintenként [1st..9th] slotok
+export type SpellSlotTable = (number[] | null)[]
 
 interface Nat20DBSchema extends DBSchema {
   spells: { key: string; value: { data: Spell[]; fetchedAt: number } }
@@ -20,6 +23,8 @@ interface Nat20DBSchema extends DBSchema {
   backgrounds: { key: string; value: { data: Background[]; fetchedAt: number } }
   // v2: monsters store átváltva MonsterSummary[] névindexre (csak kereséshez)
   monsters: { key: string; value: { data: MonsterSummary[]; fetchedAt: number } }
+  // v3: spell slot táblák open5e v2-ből (kaszt → szintenként)
+  spellTables: { key: string; value: { data: Record<string, SpellSlotTable>; fetchedAt: number } }
 }
 
 // Egyszeri DB példány – lazy init
@@ -39,6 +44,10 @@ function getDb(): Promise<IDBPDatabase<Nat20DBSchema>> {
           if (db.objectStoreNames.contains('monsters')) db.deleteObjectStore('monsters')
           db.createObjectStore('monsters')
         }
+        // v2→v3: spell slot táblák store
+        if (oldVersion < 3) {
+          db.createObjectStore('spellTables')
+        }
       },
     })
   }
@@ -56,9 +65,10 @@ type StoreDataMap = {
   species: Species[]
   backgrounds: Background[]
   monsters: MonsterSummary[]
+  spellTables: Record<string, SpellSlotTable>
 }
 
-type StoreName = 'spells' | 'conditions' | 'classes' | 'species' | 'backgrounds' | 'monsters'
+type StoreName = 'spells' | 'conditions' | 'classes' | 'species' | 'backgrounds' | 'monsters' | 'spellTables'
 
 export async function getCached<K extends StoreName>(
   store: K

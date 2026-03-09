@@ -8,9 +8,9 @@ import {
   CLASS_CASTER_TYPE,
   CLASS_STARTER_EQUIPMENT,
   CLASS_SUBCLASSES,
-  SPELL_SLOTS,
   SKILLS,
 } from '../../../data/dndConstants'
+import { useDndDataStore } from '../../../store/dndDataStore'
 
 const SPELL_LEVEL_LABELS = ['1st','2nd','3rd','4th','5th','6th','7th','8th','9th']
 
@@ -224,6 +224,7 @@ interface Props {
 }
 
 export function StepClass({ classes, selectedKey, onSelect }: Props) {
+  const spellTables = useDndDataStore(s => s.spellTables)
   const [previewKey, setPreviewKey] = useState<string | null>(selectedKey)
   const [showFullDesc, setShowFullDesc] = useState(false)
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null)
@@ -431,7 +432,7 @@ export function StepClass({ classes, selectedKey, onSelect }: Props) {
                   if (rows.length === 0) return null
 
                   // Spell slot oszlopok: full/half castereknek (Warlock kihagyva – saját Pact rendszer)
-                  const slotTable = SPELL_SLOTS[displayCls.key]
+                  const slotTable = spellTables[displayCls.key]
                   let maxSlotLevel = 0
                   if (slotTable) {
                     for (const entry of slotTable) {

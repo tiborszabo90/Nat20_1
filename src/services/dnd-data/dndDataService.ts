@@ -5,6 +5,7 @@ import type { Species } from '../../types/dnd/species'
 import type { Background } from '../../types/dnd/background'
 import type { Monster, MonsterSummary } from '../../types/dnd/monster'
 import { getCached, setCached } from './indexedDbCache'
+import type { SpellSlotTable } from './indexedDbCache'
 
 const OPEN5E_BASE = 'https://api.open5e.com'
 const GITHUB_BASE = 'https://raw.githubusercontent.com/nick-aschenbach/dnd-data/main/data'
@@ -302,12 +303,68 @@ export async function fetchMonsterBySlug(slug: string): Promise<Monster | null> 
   return mapMonster(raw)
 }
 
+// Open5e v2 class feature entry
+interface Open5eClassFeature {
+  name: string
+  data_for_class_table: { level: number; column_value: string }[]
+}
+
+const SPELL_LEVEL_ORDINALS = ['1st','2nd','3rd','4th','5th','6th','7th','8th','9th']
+const SPELLCASTER_CLASS_KEYS = ['wizard','sorcerer','cleric','druid','bard','paladin','ranger','warlock']
+
+function parseSpellSlotTable(features: Open5eClassFeature[], isWarlock: boolean): SpellSlotTable {
+  const table: SpellSlotTable = [null] // index 0 nem használt
+  if (isWarlock) {
+    // Warlock: "Spell Slots" count + "Slot Level" → 9-elem tömb
+    const slotsMap: Record<number, number> = {}
+    const levelMap: Record<number, number> = {}
+    for (const f of features) {
+      if (f.name === 'Spell Slots') f.data_for_class_table.forEach(d => { slotsMap[d.level] = parseInt(d.column_value) })
+      if (f.name === 'Slot Level') f.data_for_class_table.forEach(d => { levelMap[d.level] = parseInt(d.column_value) })
+    }
+    for (let lvl = 1; lvl <= 20; lvl++) {
+      const count = slotsMap[lvl] ?? 0
+      const slotLvl = levelMap[lvl] ?? 0
+      if (count === 0 || slotLvl === 0) { table.push(null); continue }
+      const row = [0,0,0,0,0,0,0,0,0]
+      row[slotLvl - 1] = count
+      table.push(row)
+    }
+  } else {
+    // Normál varázsló: "1st".."9th" oszlopok szintenként
+    const slotMaps: Partial<Record<string, Record<number, number>>> = {}
+    for (const f of features) {
+      if (SPELL_LEVEL_ORDINALS.includes(f.name) && f.data_for_class_table.length > 0) {
+        slotMaps[f.name] = {}
+        f.data_for_class_table.forEach(d => { slotMaps[f.name]![d.level] = parseInt(d.column_value) })
+      }
+    }
+    for (let lvl = 1; lvl <= 20; lvl++) {
+      const row = SPELL_LEVEL_ORDINALS.map(name => slotMaps[name]?.[lvl] ?? 0)
+      table.push(row.some(n => n > 0) ? row : null)
+    }
+  }
+  return table
+}
+
+async function fetchSpellTables(): Promise<Record<string, SpellSlotTable>> {
+  const results: Record<string, SpellSlotTable> = {}
+  await Promise.all(SPELLCASTER_CLASS_KEYS.map(async cls => {
+    const resp = await fetch(`${OPEN5E_BASE}/v2/classes/srd-2024_${cls}/`)
+    if (!resp.ok) return
+    const data = (await resp.json()) as { features: Open5eClassFeature[] }
+    results[cls] = parseSpellSlotTable(data.features, cls === 'warlock')
+  }))
+  return results
+}
+
 export interface AllDndData {
   spells: Spell[]
   conditions: Condition[]
   classes: DndClass[]
   species: Species[]
   backgrounds: Background[]
+  spellTables: Record<string, SpellSlotTable>
 }
 
 // Főbelépési pont: cache-ből tölt ha friss, egyébként API-ból
@@ -319,12 +376,14 @@ export async function loadAllDndData(): Promise<AllDndData> {
     cachedClasses,
     cachedSpecies,
     cachedBackgrounds,
+    cachedSpellTables,
   ] = await Promise.all([
     getCached('spells'),
     getCached('conditions'),
     getCached('classes'),
     getCached('species'),
     getCached('backgrounds'),
+    getCached('spellTables'),
   ])
 
   if (
@@ -332,7 +391,8 @@ export async function loadAllDndData(): Promise<AllDndData> {
     cachedConditions &&
     cachedClasses &&
     cachedSpecies &&
-    cachedBackgrounds
+    cachedBackgrounds &&
+    cachedSpellTables
   ) {
     return {
       spells: cachedSpells,
@@ -340,15 +400,17 @@ export async function loadAllDndData(): Promise<AllDndData> {
       classes: cachedClasses,
       species: cachedSpecies,
       backgrounds: cachedBackgrounds,
+      spellTables: cachedSpellTables,
     }
   }
 
-  const [spells, conditions, classes, species, backgrounds] = await Promise.all([
+  const [spells, conditions, classes, species, backgrounds, spellTables] = await Promise.all([
     cachedSpells ?? fetchSpells(),
     cachedConditions ?? fetchConditions(),
     cachedClasses ?? fetchClasses(),
     cachedSpecies ?? fetchSpecies(),
     cachedBackgrounds ?? fetchBackgrounds(),
+    cachedSpellTables ?? fetchSpellTables(),
   ])
 
   const saves: Promise<void>[] = []
@@ -357,7 +419,8 @@ export async function loadAllDndData(): Promise<AllDndData> {
   if (!cachedClasses) saves.push(setCached('classes', classes))
   if (!cachedSpecies) saves.push(setCached('species', species))
   if (!cachedBackgrounds) saves.push(setCached('backgrounds', backgrounds))
+  if (!cachedSpellTables) saves.push(setCached('spellTables', spellTables))
   await Promise.all(saves)
 
-  return { spells, conditions, classes, species, backgrounds }
+  return { spells, conditions, classes, species, backgrounds, spellTables }
 }

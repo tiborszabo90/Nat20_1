@@ -4,6 +4,8 @@ interface Props {
   classKey: string | null
   selected: string[]
   onChange: (skills: string[]) => void
+  // Háttér által automatikusan adott, zárolt skill jártasságok
+  backgroundSkills?: string[]
   // Faji bónusz skill szekció (Elf Keen Senses, Human Skillful stb.)
   bonusSkillTitle?: string
   bonusSkillDescription?: string
@@ -12,13 +14,14 @@ interface Props {
   onBonusSkillChange?: (skill: string) => void
 }
 
-export function StepSkillProficiencies({ classKey, selected, onChange, bonusSkillTitle, bonusSkillDescription, bonusSkillOptions, bonusSkillSelected, onBonusSkillChange }: Props) {
+export function StepSkillProficiencies({ classKey, selected, onChange, backgroundSkills = [], bonusSkillTitle, bonusSkillDescription, bonusSkillOptions, bonusSkillSelected, onBonusSkillChange }: Props) {
   const def = classKey ? CLASS_SKILL_PROFICIENCIES[classKey] : undefined
   const count = def?.count ?? 0
-  // Ha skills üres (Bard) → az összes skill elérhető
-  const available = def && def.skills.length > 0
+  // Ha skills üres (Bard) → az összes skill elérhető; háttér által adott skilleket kizárjuk
+  const available = (def && def.skills.length > 0
     ? SKILLS.filter(s => def.skills.includes(s.key))
     : SKILLS
+  ).filter(s => !backgroundSkills.includes(s.key))
 
   function toggle(key: string) {
     if (selected.includes(key)) {
@@ -69,6 +72,34 @@ export function StepSkillProficiencies({ classKey, selected, onChange, bonusSkil
                     </div>
                   </div>
                 </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Háttér által adott, zárolt skill jártasságok */}
+      {backgroundSkills.length > 0 && (
+        <div className="mb-5 p-4 bg-amber-900/20 border border-amber-700/40 rounded-xl">
+          <p className="subheading-m text-amber-300 mb-1">Háttér jártasságai</p>
+          <p className="text-text-muted text-xs mb-3">Ezeket a háttéred automatikusan adja – nem módosíthatók.</p>
+          <div className="flex flex-col gap-2">
+            {backgroundSkills.map(key => {
+              const skill = SKILLS.find(s => s.key === key)
+              if (!skill) return null
+              return (
+                <div
+                  key={key}
+                  className="text-left px-4 py-3 rounded-btn border-2 border-amber-600/50 bg-amber-500/10 opacity-80 cursor-not-allowed"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="label-l text-white">{skill.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-text-subtle text-xs">{skill.ability}</span>
+                      <span className="text-amber-400 text-xs font-bold">✓</span>
+                    </div>
+                  </div>
+                </div>
               )
             })}
           </div>

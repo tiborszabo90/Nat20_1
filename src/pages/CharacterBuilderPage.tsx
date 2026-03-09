@@ -18,6 +18,7 @@ import {
   BACKGROUND_MAGIC_INITIATE_CLASS,
   MAGIC_INITIATE_BACKGROUNDS,
   SKILLS,
+  BACKGROUND_INFO,
   WEAPON_MASTERY_CLASSES,
   INSTRUMENT_PROFICIENCY_CLASSES,
   DIVINE_ORDER_CLASSES,
@@ -38,7 +39,6 @@ import {
   SPECIES_NEEDS_SIZE_ONLY,
   getAbilityModifier,
   getMaxHp,
-  getSpellSlots,
 } from '../data/dndConstants'
 import type { Ability } from '../data/dndConstants'
 import type { AbilityScores } from '../types/dnd/character'
@@ -91,6 +91,7 @@ export function CharacterBuilderPage() {
   const classes    = useDndDataStore(s => s.classes)
   const spellsMap  = useDndDataStore(s => s.spells)
   const spells     = useMemo(() => Array.from(spellsMap.values()), [spellsMap])
+  const spellTables = useDndDataStore(s => s.spellTables)
   const isDataLoading = useDndDataStore(s => s.isLoading)
 
   const campaignCode  = useCampaignStore(s => s.campaignCode)
@@ -174,6 +175,13 @@ export function CharacterBuilderPage() {
   const bonusSkillDescription = needsLineage
     ? 'Elfi érzékeid 1 skill jártasságot adnak az alábbiak közül.'
     : 'Emberi sokoldalúságod 1 extra skill jártasságot biztosít (bármilyen skill).'
+
+  // Háttér által adott skill jártasságok (zárolt, automatikus)
+  const backgroundSkillKeys: string[] = backgroundKey
+    ? (BACKGROUND_INFO[backgroundKey]?.skills ?? [])
+        .map(name => SKILLS.find(s => s.name === name)?.key)
+        .filter((k): k is string => !!k)
+    : []
 
   // Háttér ability opciók
   const backgroundAbilities = backgroundKey ? (BACKGROUND_ABILITY_OPTIONS[backgroundKey] ?? []) : []
@@ -331,7 +339,7 @@ export function CharacterBuilderPage() {
       const maxHp  = getMaxHp(classKey, level, conMod)
       const ac     = 10 + dexMod
       const savingThrows = (CLASS_SAVING_THROWS[classKey] ?? []) as Ability[]
-      const spellSlots   = getSpellSlots(classKey, level)
+      const spellSlots   = spellTables[classKey]?.[level] ?? null
       const casterType   = CLASS_CASTER_TYPE[classKey]
 
       // RequireAuth garantálja, hogy authUid nem null
@@ -513,6 +521,7 @@ export function CharacterBuilderPage() {
             classKey={classKey}
             selected={skillProficiencies}
             onChange={setSkillProficiencies}
+            backgroundSkills={backgroundSkillKeys}
             bonusSkillTitle={needsBonusSkill ? bonusSkillTitle : undefined}
             bonusSkillDescription={needsBonusSkill ? bonusSkillDescription : undefined}
             bonusSkillOptions={needsBonusSkill ? bonusSkillOptions : undefined}
@@ -632,8 +641,6 @@ export function CharacterBuilderPage() {
               return [...classItems, ...bgItems]
             })()}
             languages={[...languages, ...thievesCantAuto]}
-            onSubmit={handleSubmit}
-            isLoading={isSubmitting}
           />
         )}
 
@@ -663,6 +670,15 @@ export function CharacterBuilderPage() {
               className="flex-1 border border-border hover:border-border-hover text-text-secondary label-l py-3 rounded-btn transition-colors"
             >
               Vissza
+            </button>
+          )}
+          {step === S_REVIEW && (
+            <button
+              onClick={handleSubmit}
+              disabled={!canProceed() || isSubmitting}
+              className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-gray-950 label-l py-3 rounded-btn transition-colors"
+            >
+              {isSubmitting ? 'Létrehozás...' : 'Karakter Létrehozása'}
             </button>
           )}
           {step < S_REVIEW && (

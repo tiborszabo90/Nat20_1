@@ -1,4 +1,3 @@
-import { Button } from '../../ui'
 import {
   ABILITIES,
   SKILLS,
@@ -15,8 +14,8 @@ import {
   getProficiencyBonus,
   getAbilityModifier,
   getMaxHp,
-  getSpellSlots,
 } from '../../../data/dndConstants'
+import { useDndDataStore } from '../../../store/dndDataStore'
 import { FEATS_BY_KEY } from '../../../data/featsData'
 import type { AbilityScores } from '../../../types/dnd/character'
 import type { Species } from '../../../types/dnd/species'
@@ -54,25 +53,22 @@ interface Props {
   spells: Spell[]
   starterEquipment: string[]
   languages: string[]
-  onSubmit: () => void
-  isLoading: boolean
 }
 
 export function StepReview({
-  name, onNameChange, species, background, cls, abilityScores, skillProficiencies, bonusSkill, bonusSkillTitle, instrumentProficiencies, divineOrder, primalOrder, expertiseSkills, eldritchInvocations, draconicAncestry, elvenLineage, elvenSpellcastingAbility, gnomishLineage, gnomishSpellcastingAbility, giantAncestry, speciesSize, tieflingLegacy, tieflingSpellcastingAbility, humanVersatileFeat, knownCantrips, knownSpells, spells, starterEquipment, languages, onSubmit, isLoading,
+  name, onNameChange, species, background, cls, abilityScores, skillProficiencies, bonusSkill, bonusSkillTitle, instrumentProficiencies, divineOrder, primalOrder, expertiseSkills, eldritchInvocations, draconicAncestry, elvenLineage, elvenSpellcastingAbility, gnomishLineage, gnomishSpellcastingAbility, giantAncestry, speciesSize, tieflingLegacy, tieflingSpellcastingAbility, humanVersatileFeat, knownCantrips, knownSpells, spells, starterEquipment, languages,
 }: Props) {
+  const spellTables = useDndDataStore(s => s.spellTables)
   const level = 1
   const pb = getProficiencyBonus(level)
   const conMod = getAbilityModifier(abilityScores.CON)
   const dexMod = getAbilityModifier(abilityScores.DEX)
   const maxHp = cls ? getMaxHp(cls.key, level, conMod) : 0
   const ac = 10 + dexMod
-  const slots = cls ? getSpellSlots(cls.key, level) : null
+  const slots: number[] | null = cls ? (spellTables[cls.key]?.[level] ?? null) : null
   const savingThrows = cls ? (CLASS_SAVING_THROWS[cls.key] ?? []) : []
   const originFeatKey = background ? BACKGROUND_ORIGIN_FEAT[background.key] : undefined
   const originFeat = originFeatKey ? FEATS_BY_KEY[originFeatKey] : undefined
-
-  const isReady = name.trim().length > 0 && !!species && !!background && !!cls
 
   return (
     <div>
@@ -364,9 +360,6 @@ export function StepReview({
         </div>
       )}
 
-      <Button onClick={onSubmit} disabled={!isReady || isLoading} size="lg" fullWidth>
-        {isLoading ? 'Létrehozás...' : 'Karakter Létrehozása'}
-      </Button>
     </div>
   )
 }
